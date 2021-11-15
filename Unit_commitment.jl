@@ -1,6 +1,8 @@
 using JuMP
-import Pkg; Pkg.add([ "DataFrames","GLPK"])
+using LinearAlgebra
+#using DiffOpt, Plots
 using GLPK
+using ChainRulesCore
 g_max = [1000, 1000]
 g_min = [0, 300]
 c_g = [50, 100]
@@ -28,12 +30,6 @@ println("Wind spillage: ", w_f - w_opt, " MW")
 println("\n")
 println("Total cost: ", obj, "\$")
 
-using JuMP
-using LinearAlgebra
-import Pkg; Pkg.add([ "DataFrames","GLPK","Clp","ChainRulesCore"])
-#using DiffOpt, Plots
-using GLPK
-using ChainRulesCore
 g_max = [1000, 1000]
 g_min = [0,30]
 c_g = [50, 100]
@@ -68,12 +64,6 @@ println("Dispatch of Wind: ", w_opt, " MW")
 println("\n")
 println("Total cost: ", obj, "\$")
 
-using JuMP
-using LinearAlgebra
-import Pkg; Pkg.add([ "DataFrames","GLPK","Clp","ChainRulesCore"])
-#using DiffOpt, Plots
-using GLPK
-using ChainRulesCore
 g_max = [1000, 1000]
 g_min = [0,300]
 c_g = [50, 100]
@@ -108,12 +98,6 @@ println("Dispatch of Wind: ", w_opt, " MW")
 println("\n")
 println("Total cost: ", obj, "\$")
 
-using JuMP
-using LinearAlgebra
-import Pkg; Pkg.add([ "DataFrames","GLPK","Clp","ChainRulesCore"])
-#using DiffOpt, Plots
-using GLPK
-using ChainRulesCore
 g_max = [1000, 1000]
 g_min = [300,300]
 c_g = [100, 100]
@@ -152,12 +136,6 @@ println("Dispatch of Wind: ", w_opt, " MW")
 println("\n")
 println("Total cost: ", obj, "\$")
 
-using JuMP
-using LinearAlgebra
-import Pkg; Pkg.add([ "DataFrames","GLPK","Clp","ChainRulesCore"])
-#using DiffOpt, Plots
-using GLPK
-using ChainRulesCore
 g_max = [1000, 1000]
 g_min = [300,300]
 c_g = [100, 100]
