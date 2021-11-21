@@ -1,0 +1,64 @@
+using JuMP
+using LinearAlgebra
+#using DiffOpt, Plots
+using GLPK
+using ChainRulesCore
+
+#generator min and max capacities
+g_max = [1000, 1000]
+g_min = [300,300]
+
+#cost function for each 1MW
+c_g = [100, 100]
+#no load cost (once the generator is on)
+c_g0 = [1000, 0]
+
+#cost of renewable generation
+c_w = 50
+
+#demand fluctuation over time period
+d = [1000 1000 1300 1000 1000 1000 1300]
+
+#maximum wind farm generation MW
+w_f = 200
+
+# Minimum Up and Down times
+UTg=[4,0]
+UDg=[4,0]
+
+function solve_ed(g_max, g_min, c_g, c_w, d, w_f)
+    ed = Model(GLPK.Optimizer)
+    #wind farm generation
+    @variable(ed, 0 <= w[i=1:1,j=1:7] <= w_f)
+    #unit commitment binary variable  
+    @variable(ed,u[i=1:2,j=1:7], Bin)
+    #conventional generators
+    @variable(ed, 0 <= g[i=1:2,j=1:7] <= g_max[i])
+    # min production cost
+    @objective(ed, Min, sum(sum(((g[i,j] *c_g[i,1])+(u[i,j]*c_g0[i,1])) for i=1:2)+ (c_w* w[1,j]) for j=1:7))
+    #on/off and generator load less than max
+    @constraint(ed,[i=1:2,j=1:7], g[i,j] <= g_max[i]*u[i,j])
+    @constraint(ed,[i=1:2,j=1:7], g[i,j] >= g_min[i]*u[i,j]) 
+    @constraint(ed,[i=1:1,j=1:7],w[i,j] <= w_f)
+    #load balance equation
+    @constraint(ed,[j=1:7],(g[1,j]+ g[2,j] + w[1,j] == d[1,j]))
+    #@constraint(ed,[i=1:2],u[i,0]==0)
+    #once on it remains on for minimum up times
+    @constraint(ed,[j=2:7,i=1:2,s=j+1:min(7,j.+UTg[i,1]-1)],u[i,s]>=u[i,j]-u[i,j-1])
+    @constraint(ed,[j=1:1,i=1:2,s=j+1:min(7,j.+UTg[i,1]-1)],u[i,s]>=u[i,j]-0)    
+    @constraint(ed,[j=2:7,i=1:2,s=j+1:min(7,j.+UDg[i,1]-1)],(1-u[i,s])>=u[i,j-1]-u[i,j])
+    @constraint(ed,[j=1:1,i=1:2,s=j+1:min(7,j.+UDg[i,1]-1)],(1-u[i,s])>=0-u[i,j])
+    optimize!(ed)
+    return JuMP.value.(g), JuMP.value.(w), objective_value(ed),JuMP.value.(u)
+end
+(g_opt, w_opt, obj,u) = solve_ed(g_max, g_min, c_g, c_w, d, w_f);
+
+#display(un)
+println("Dispatch of Generators: ",g_opt, " MW")
+println("Binary: ",u, " Bin")
+println("Dispatch of Wind: ", w_opt, " MW")
+#println("Wind spillage: ", w_f - w_opt, " MW")
+println("\n")
+println("Total cost: ", obj, "\$")
+
+
