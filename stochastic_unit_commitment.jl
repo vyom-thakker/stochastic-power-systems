@@ -29,10 +29,10 @@ c_w = 10
 c_s = 10
 
 # Load demand for one day or 24 hours
-d = [76.07 90.33 33.78 39.41 34.96 36.73 32.5 29.65 35.89 45.5 41.9 38.6 43.16 65.56 45.02 35.63 40.31 56.85 74.55 90 57.22 49.6 59.49 83.5]
+d = [35.89 45.5 41.9 38.6 43.16 65.56 45.02 35.63 40.31 56.85 74.55 90 57.22 49.6 59.49 83.5 76.07 90.33 33.78 39.41 34.96 36.73 32.5 29.65]
 
 # Wind power maximum value at each hour for 24 hours
-w_f = [20 40]
+w_f = [10 40]
 w_pt_df = CSV.File("./wind_transitionMat.csv", header=0, delim=',') |> DataFrame 
 w_pt=Matrix(w_pt_df)
 
@@ -69,8 +69,7 @@ function solve_ed(g_max, g_min, c_g, c_w, d, w_f, s_f)
 #Conventional generation constraints    
     @constraint(ed,[i=1:3,j=1:24], g[i,j] <= g_max[i]*u[i,j])
     @constraint(ed,[i=1:3,j=1:24], g[i,j] >= g_min[i]*u[i,j]) 
-    @constraint(ed,[i=1:1,j=1:6],s[i,j] ==0) 
-    @constraint(ed,[i=1:1,j=20:24],s[i,j] ==0) 
+    @constraint(ed,[i=1:1,j=12:20],s[i,j] ==0) 
     
 #Power balance equation constraint   
     @constraint(ed,[j=1:24],(sum(g[i,j] for i=1:3)+ w[1,j]+ s[1,j] == d[1,j]))
@@ -110,8 +109,7 @@ function solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i)
 #Wind and Solar generation variable for each hour    
     @variable(st, 0 <= w[i=1:1,j=1:24] <= wind_pow_corr(w_p_i*w_pt^j))
     @variable(st, 0 <= s[i=1:1,j=1:24] <= solar_pow_corr(s_p_i*s_pt^j))   
-    @constraint(st,[i=1:1,j=1:6],s[i,j] ==0) 
-    @constraint(st,[i=1:1,j=20:24],s[i,j] ==0) 
+    @constraint(st,[i=1:1,j=12:20],s[i,j] ==0) 
 
 #Unit commitment binary variable for conventional generator    
     @variable(st,u[i=1:3,j=1:24], Bin)
