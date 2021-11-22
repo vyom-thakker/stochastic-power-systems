@@ -5,7 +5,7 @@ using GLPK
 using ChainRulesCore
 using CSV
 using DataFrames
-
+using FileIO
 
 #initial wind speed
 w_p_i=[0 0 0 0 1 0 0 0]
@@ -32,12 +32,12 @@ c_s = 10
 d = [76.07 90.33 33.78 39.41 34.96 36.73 32.5 29.65 35.89 45.5 41.9 38.6 43.16 65.56 45.02 35.63 40.31 56.85 74.55 90 57.22 49.6 59.49 83.5]
 
 # Wind power maximum value at each hour for 24 hours
-w_f = [40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40 40]
+w_f = [10 40]
 w_pt_df = CSV.File("./wind_transitionMat.csv", header=0, delim=',') |> DataFrame 
 w_pt=Matrix(w_pt_df)
 
 #Solar power maximum value at each hour for 24 hours
-s_f = [30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30 30]
+s_f = [10 30]
 s_pt_df = CSV.File("./solar_transitionMat.csv", header=0, delim=',') |> DataFrame
 s_pt=Matrix(s_pt_df)
 
@@ -54,8 +54,8 @@ function solve_ed(g_max, g_min, c_g, c_w, d, w_f, s_f)
     ed = Model(GLPK.Optimizer)
     
 #Wind and Solar generation variable for each hour    
-    @variable(ed, 0 <= w[i=1:1,j=1:24] <= w_f[i,j])
-    @variable(ed, 0 <= s[i=1:1,j=1:24] <= s_f[i,j])
+    @variable(ed, 0 <= w[i=1:1,j=1:24] <= w_f[1])
+    @variable(ed, 0 <= s[i=1:1,j=1:24] <= s_f[1])
     
 #Unit commitment binary variable for conventional generator    
     @variable(ed,u[i=1:3,j=1:24], Bin)
@@ -70,9 +70,6 @@ function solve_ed(g_max, g_min, c_g, c_w, d, w_f, s_f)
     @constraint(ed,[i=1:3,j=1:24], g[i,j] <= g_max[i]*u[i,j])
     @constraint(ed,[i=1:3,j=1:24], g[i,j] >= g_min[i]*u[i,j]) 
     
-#Wind and Solar generation constraints    
-    @constraint(ed,[i=1:1,j=1:24],w[i,j] <= w_f[1,j])
-    @constraint(ed,[i=1:1,j=1:24],s[i,j] <= s_f[1,j])
     
 #Power balance equation constraint   
     @constraint(ed,[j=1:24],(sum(g[i,j] for i=1:3)+ w[1,j]+ s[1,j] == d[1,j]))
@@ -97,22 +94,22 @@ end
 #stochastic problem
 
 function wind_pow_corr(p_t)
-    w_pow=[0,0.06,0.18,0.56,0.85,1,0.96,0.87];
-    return sum(w_pow.*p_t);
+    w_pow=[0 0.06 0.18 0.56 0.85 1 0.96 0.87];
+    return w_f[2]*sum(w_pow.*p_t);
 end
 
 function solar_pow_corr(p_t)
-    s_pow=[1,1,0.94,0.85,0.7,0.5,0.3,0.1];
-    return sum(s_pow.*p_t);
+    s_pow=[1 1 0.94 0.85 0.7 0.5 0.3 0.1];
+    return s_f[2]*sum(s_pow.*p_t);
 end
 
 function solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i)
     st = Model(GLPK.Optimizer)
     
 #Wind and Solar generation variable for each hour    
-    @variable(st, 0 <= w[i=1:1,j=1:24] <= w_f[i,j])
-    @variable(st, 0 <= s[i=1:1,j=1:24] <= s_f[i,j])
-    
+    @variable(st, 0 <= w[i=1:1,j=1:24] <= wind_pow_corr(w_p_i*w_pt^j))
+    @variable(st, 0 <= s[i=1:1,j=1:24] <= solar_pow_corr(s_p_i*s_pt^j))   
+
 #Unit commitment binary variable for conventional generator    
     @variable(st,u[i=1:3,j=1:24], Bin)
     
@@ -126,10 +123,6 @@ function solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i)
     @constraint(st,[i=1:3,j=1:24], g[i,j] <= g_max[i]*u[i,j])
     @constraint(st,[i=1:3,j=1:24], g[i,j] >= g_min[i]*u[i,j]) 
     
-#Wind and Solar generation constraints    
-    @constraint(st,[i=1:1,j=1:24],w[i,j] <= w_f[i,j]*wind_pow_corr(w_p_i*w_pt^j))
-    print([w_f[1,j]*wind_pow_corr(w_p_i*w_pt^j) for j in 1:24])
-    @constraint(st,[i=1:1,j=1:24],s[i,j] <= s_f[i,j]*solar_pow_corr(s_p_i*s_pt^j))
     
 #Power balance equation constraint   
     @constraint(st,[j=1:24],(sum(g[i,j] for i=1:3)+ w[1,j]+ s[1,j] == d[1,j]))
@@ -151,7 +144,7 @@ function solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i)
 end
 (g_opt, w_opt, s_opt, obj,u) = solve_ed(g_max, g_min, c_g, c_w, d, w_f, s_f);
 
-println("Dispatch of Coventional Generators: ",g_opt, " MW")
+println("Dispatch of Conventional Generators: ",g_opt, " MW")
 println("\n")
 println("Dispatch of Wind Generator: ",w_opt, " MW")
 println("\n")
@@ -160,7 +153,6 @@ println("\n")
 println("Binary:",u, " Bin")
 println("\n")
 println("Total cost: ", obj, "\$")
-
 
 (g_opt, w_opt, s_opt, obj,u) = solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i);
 println("Dispatch of Coventional Generators: ",g_opt, " MW")
