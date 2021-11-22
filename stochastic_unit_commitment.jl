@@ -128,7 +128,8 @@ function solve_st(g_max, g_min, c_g, c_w, d, w_f, s_f,w_p_i,s_p_i)
     
 #Wind and Solar generation constraints    
     @constraint(st,[i=1:1,j=1:24],w[i,j] <= w_f[i,j]*wind_pow_corr(w_p_i*w_pt^j))
-    @constraint(st,[i=1:1,j=1:24],s[i,j] <= w_f[i,j]*solar_pow_corr(s_p_i*s_pt^j))
+    print([w_f[1,j]*wind_pow_corr(w_p_i*w_pt^j) for j in 1:24])
+    @constraint(st,[i=1:1,j=1:24],s[i,j] <= s_f[i,j]*solar_pow_corr(s_p_i*s_pt^j))
     
 #Power balance equation constraint   
     @constraint(st,[j=1:24],(sum(g[i,j] for i=1:3)+ w[1,j]+ s[1,j] == d[1,j]))
